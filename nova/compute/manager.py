@@ -1814,7 +1814,8 @@ class ComputeManager(manager.Manager):
                      filter_properties, admin_password=None,
                      injected_files=None, requested_networks=None,
                      security_groups=None, block_device_mapping=None,
-                     node=None, limits=None, host_list=None):
+                     node=None, limits=None, host_list=None,
+                     no_provision=False):
 
         @utils.synchronized(instance.uuid)
         def _locked_do_build_and_run_instance(*args, **kwargs):
@@ -1866,7 +1867,8 @@ class ComputeManager(manager.Manager):
                       context, instance, image, request_spec,
                       filter_properties, admin_password, injected_files,
                       requested_networks, security_groups,
-                      block_device_mapping, node, limits, host_list)
+                      block_device_mapping, node, limits, host_list,
+                      no_provision)
 
     def _delete_allocation_for_instance(self, context, instance_uuid):
         rt = self._get_resource_tracker()
@@ -1907,7 +1909,7 @@ class ComputeManager(manager.Manager):
     def _do_build_and_run_instance(self, context, instance, image,
             request_spec, filter_properties, admin_password, injected_files,
             requested_networks, security_groups, block_device_mapping,
-            node=None, limits=None, host_list=None):
+            node=None, limits=None, host_list=None, no_provision=False):
 
         try:
             LOG.debug('Starting instance...', instance=instance)
@@ -1937,7 +1939,7 @@ class ComputeManager(manager.Manager):
                 self._build_and_run_instance(context, instance, image,
                         decoded_files, admin_password, requested_networks,
                         security_groups, block_device_mapping, node, limits,
-                        filter_properties, request_spec)
+                        filter_properties, request_spec, no_provision)
             LOG.info('Took %0.2f seconds to build instance.',
                      timer.elapsed(), instance=instance)
             return build_results.ACTIVE
@@ -2081,7 +2083,7 @@ class ComputeManager(manager.Manager):
     def _build_and_run_instance(self, context, instance, image, injected_files,
             admin_password, requested_networks, security_groups,
             block_device_mapping, node, limits, filter_properties,
-            request_spec=None):
+            request_spec=None, no_provision=False):
 
         image_name = image.get('name')
         self._notify_about_instance_usage(context, instance, 'create.start',
@@ -2126,7 +2128,9 @@ class ComputeManager(manager.Manager):
                     LOG.debug('Start spawning the instance on the hypervisor.',
                               instance=instance)
                     with timeutils.StopWatch() as timer:
-                        self.driver.spawn(context, instance, image_meta,
+                        self.driver.spawn(context, instance,
+                                          None if no_provision else
+                                            image_meta,
                                           injected_files, admin_password,
                                           allocs, network_info=network_info,
                                           block_device_info=block_device_info)
@@ -2899,7 +2903,7 @@ class ComputeManager(manager.Manager):
                               bdms, detach_block_devices, attach_block_devices,
                               network_info=None,
                               evacuate=False, block_device_info=None,
-                              preserve_ephemeral=False):
+                              preserve_ephemeral=False, no_provision=False):
         if preserve_ephemeral:
             # The default code path does not support preserving ephemeral
             # partitions.
@@ -2924,7 +2928,9 @@ class ComputeManager(manager.Manager):
             expected_task_state=[task_states.REBUILD_BLOCK_DEVICE_MAPPING])
 
         with instance.mutated_migration_context():
-            self.driver.spawn(context, instance, image_meta, injected_files,
+            self.driver.spawn(context, instance,
+                              None if no_provision else image_meta,
+                              injected_files,
                               admin_password, allocations,
                               network_info=network_info,
                               block_device_info=new_block_device_info)
@@ -5074,7 +5080,7 @@ class ComputeManager(manager.Manager):
         instance.update(keys)
 
     def _unshelve_instance(self, context, instance, image, filter_properties,
-                           node):
+                           node, no_provision=False):
         LOG.info('Unshelving', instance=instance)
         bdms = objects.BlockDeviceMappingList.get_by_instance_uuid(
                 context, instance.uuid)
@@ -5113,7 +5119,8 @@ class ComputeManager(manager.Manager):
         network_info = self.network_api.get_instance_nw_info(context, instance)
         try:
             with rt.instance_claim(context, instance, node, limits):
-                self.driver.spawn(context, instance, image_meta,
+                self.driver.spawn(context, instance,
+                                  None if no_provision else image_meta,
                                   injected_files=[],
                                   admin_password=None,
                                   allocations=allocations,
