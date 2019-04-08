@@ -2953,7 +2953,8 @@ class ComputeManager(manager.Manager):
                          injected_files, new_pass, orig_sys_metadata,
                          bdms, recreate, on_shared_storage,
                          preserve_ephemeral, migration,
-                         scheduled_node, limits, request_spec):
+                         scheduled_node, limits, request_spec,
+                         no_provision=False):
         """Destroy and re-make this instance.
 
         A 'rebuild' effectively purges all existing data from the system and
@@ -3042,7 +3043,7 @@ class ComputeManager(manager.Manager):
                     claim_ctxt, context, instance, orig_image_ref,
                     image_ref, injected_files, new_pass, orig_sys_metadata,
                     bdms, evacuate, on_shared_storage, preserve_ephemeral,
-                    migration, request_spec)
+                    migration, request_spec, no_provision)
             except (exception.ComputeResourcesUnavailable,
                     exception.RescheduledException) as e:
                 if isinstance(e, exception.ComputeResourcesUnavailable):
@@ -3117,7 +3118,7 @@ class ComputeManager(manager.Manager):
                              image_ref, injected_files, new_pass,
                              orig_sys_metadata, bdms, evacuate,
                              on_shared_storage, preserve_ephemeral,
-                             migration, request_spec):
+                             migration, request_spec, no_provision):
         orig_vm_state = instance.vm_state
 
         if evacuate:
@@ -3263,7 +3264,8 @@ class ComputeManager(manager.Manager):
             block_device_info=block_device_info,
             network_info=network_info,
             preserve_ephemeral=preserve_ephemeral,
-            evacuate=evacuate)
+            evacuate=evacuate,
+            no_provision=no_provision)
         try:
             with instance.mutated_migration_context():
                 self.driver.rebuild(**kwargs)
@@ -5047,7 +5049,7 @@ class ComputeManager(manager.Manager):
     @wrap_instance_event(prefix='compute')
     @wrap_instance_fault
     def unshelve_instance(self, context, instance, image,
-                          filter_properties, node):
+                          filter_properties, node, no_provision=False):
         """Unshelve the instance.
 
         :param context: request context
@@ -5063,8 +5065,8 @@ class ComputeManager(manager.Manager):
         @utils.synchronized(instance.uuid)
         def do_unshelve_instance():
             self._unshelve_instance(context, instance, image,
-                                    filter_properties, node)
-        do_unshelve_instance()
+                                    filter_properties, node, no_provision)
+        do_unshelve_instance(no_provision=False)
 
     def _unshelve_instance_key_scrub(self, instance):
         """Remove data from the instance that may cause side effects."""

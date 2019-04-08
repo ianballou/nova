@@ -747,7 +747,7 @@ class ComputeAPI(object):
             image_ref, orig_image_ref, orig_sys_metadata, bdms,
             recreate, on_shared_storage, host, node,
             preserve_ephemeral, migration, limits,
-            request_spec, kwargs=None):
+            request_spec, no_provision=False, kwargs=None):
         # NOTE(edleafe): compute nodes can only use the dict form of limits.
         if isinstance(limits, objects.SchedulerLimits):
             limits = limits.to_dict()
@@ -757,7 +757,8 @@ class ComputeAPI(object):
                     'migration': migration,
                     'scheduled_node': node,
                     'limits': limits,
-                    'request_spec': request_spec}
+                    'request_spec': request_spec,
+                    'no_provision': no_provision,}
         version = '5.0'
         client = self.router.client(ctxt)
         cctxt = client.prepare(server=_compute_host(host, instance),
@@ -993,13 +994,15 @@ class ComputeAPI(object):
                    clean_shutdown=clean_shutdown)
 
     def unshelve_instance(self, ctxt, instance, host, image=None,
-                          filter_properties=None, node=None):
+                          filter_properties=None, node=None,
+                          no_provision=False):
         version = '5.0'
         msg_kwargs = {
             'instance': instance,
             'image': image,
             'filter_properties': filter_properties,
             'node': node,
+            'no_provision': no_provision,
         }
         cctxt = self.router.client(ctxt).prepare(
                 server=host, version=version)
@@ -1034,7 +1037,7 @@ class ComputeAPI(object):
             filter_properties, admin_password=None, injected_files=None,
             requested_networks=None, security_groups=None,
             block_device_mapping=None, node=None, limits=None,
-            host_list=None):
+            host_list=None, no_provision=False):
         # NOTE(edleafe): compute nodes can only use the dict form of limits.
         if isinstance(limits, objects.SchedulerLimits):
             limits = limits.to_dict()
@@ -1050,6 +1053,7 @@ class ComputeAPI(object):
                   "node": node,
                   "limits": limits,
                   "host_list": host_list,
+                  "no_provision": no_provision,
                  }
         client = self.router.client(ctxt)
         version = '5.0'
