@@ -1050,6 +1050,10 @@ class IronicDriver(virt_driver.ComputeDriver):
             information.
         """
         LOG.debug('Spawn called for instance', instance=instance)
+        if image_meta is None:
+            LOG.debug('Spawn skipping for instance', instance=instance)
+            return
+
 
         # The compute manager is meant to know the node uuid, so missing uuid
         # is a significant issue. It may mean we've been passed the wrong data.
